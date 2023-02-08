@@ -160,9 +160,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         {
             logger.info(debugName + " Received response: " + msg);
             JSONObject obj = new JSONObject(msg);
-            boolean isFinal = obj.getBoolean("is_final");
-            String result = obj.getJSONObject("channel").getString("transcript");
-            UUID uuid = UUID.fromString(obj.getJSONObject("metadata").getString("request_id"));
+            boolean isFinal = obj.has("is_final") && obj.getBoolean("is_final");
+            String result = obj.has("transcript") ? obj.getString("transcript") : "";
+            UUID uuid = UUID.fromString(obj.getString("request_id"));
             for (TranscriptionListener l : listeners)
             {
                 l.notify(new TranscriptionResult(

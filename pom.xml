@@ -13,7 +13,7 @@
   <url>https://github.com/jitsi/jigasi</url>
 
   <properties>
-    <assembly.skipAssembly>true</assembly.skipAssembly>
+    <assembly.skipAssembly>false</assembly.skipAssembly>
     <jitsi-desktop.version>2.14.d0aa71b67</jitsi-desktop.version>
     <jitsi-desktop.groupId>org.jitsi.desktop</jitsi-desktop.groupId>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -100,6 +100,11 @@
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>websocket-jetty-client</artifactId>
+      <version>${jetty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
       <version>${jetty.version}</version>
     </dependency>
 
