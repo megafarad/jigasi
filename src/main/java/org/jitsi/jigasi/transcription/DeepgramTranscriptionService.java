@@ -203,7 +203,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             }
             catch (Exception e)
             {
-                throw new RuntimeException(e);
+                logger.error("Error to finalize websocket connection for participant " + debugName, e);
             }
         }
 
