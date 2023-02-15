@@ -37,7 +37,11 @@ public class DeepgramTranscriptionService implements TranscriptionService {
 
     private void generateWebsocketUrl(Participant participant)
     {
-        websocketUrl = websocketUrlConfig + "?language=" + participant.getSourceLanguage() + "&interim_results=true";
+        websocketUrl = websocketUrlConfig + "?language="
+                + participant.getSourceLanguage()
+                + "&interim_results=true"
+                + "&encoding=linear16"
+                + "&sample_rate=48000";
     }
 
     public DeepgramTranscriptionService() {
@@ -161,8 +165,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             logger.info(debugName + " Received response: " + msg);
             JSONObject obj = new JSONObject(msg);
             boolean isFinal = obj.has("is_final") && obj.getBoolean("is_final");
-            String result = obj.has("transcript") ? obj.getString("transcript") : "";
-            UUID uuid = UUID.fromString(obj.getString("request_id"));
+            String result = obj.getJSONObject("channel").has("transcript") ?
+                    obj.getJSONObject("channel").getString("transcript") : "";
+            UUID uuid = UUID.fromString(obj.getJSONObject("metadata").getString("request_id"));
             for (TranscriptionListener l : listeners)
             {
                 l.notify(new TranscriptionResult(
@@ -262,8 +267,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         @OnWebSocketMessage
         public void onMessage(String msg) {
             JSONObject obj = new JSONObject(msg);
-            this.isFinal = obj.getBoolean("is_final");
-            this.result = obj.getJSONObject("channel").getString("transcript");
+            this.isFinal = obj.has("is_final") && obj.getBoolean("is_final");
+            this.result = obj.getJSONObject("channel").has("transcript") ?
+                    obj.getJSONObject("channel").getString("transcript") : "";
             this.uuid = UUID.fromString(obj.getJSONObject("metadata").getString("request_id"));
         }
 
