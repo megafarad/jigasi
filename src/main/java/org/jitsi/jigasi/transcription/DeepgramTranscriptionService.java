@@ -134,6 +134,10 @@ public class DeepgramTranscriptionService implements TranscriptionService {
 
         private String transcriptionTag = "en-US";
 
+        private String lastResult = "";
+
+        private UUID uuid = UUID.randomUUID();
+
         private final List<TranscriptionListener> listeners = new ArrayList<>();
 
         DeepgramWebsocketStreamingSession(String debugName, String apiKey)
@@ -162,24 +166,32 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         @OnWebSocketMessage
         public void onMessage(String msg)
         {
-            logger.info(debugName + " Received response: " + msg);
+            logger.debug(debugName + " Received response: " + msg);
             JSONObject obj = new JSONObject(msg);
             boolean isFinal = obj.has("is_final") && obj.getBoolean("is_final");
             String result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
                     obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
                             .getString("transcript") : "";
-            logger.info(debugName + " parsed result " + result);
-            UUID uuid = obj.has("metadata") ? UUID.fromString(obj.getJSONObject("metadata")
-                    .getString("request_id")) : UUID.fromString(obj.getString("request_id"));
-            for (TranscriptionListener l : listeners)
+            logger.debug(debugName + " parsed result " + result);
+
+            if (!result.isEmpty() && (isFinal || !result.equals(lastResult)))
             {
-                l.notify(new TranscriptionResult(
-                        null,
-                        uuid,
-                        !isFinal,
-                        transcriptionTag,
-                        0.0,
-                        new TranscriptionAlternative(result)));
+                lastResult = result;
+                for (TranscriptionListener l : listeners)
+                {
+                    l.notify(new TranscriptionResult(
+                            null,
+                            uuid,
+                            !isFinal,
+                            transcriptionTag,
+                            0.0,
+                            new TranscriptionAlternative(result)));
+                }
+            }
+
+            if (isFinal)
+            {
+                this.uuid = UUID.randomUUID();
             }
         }
 
