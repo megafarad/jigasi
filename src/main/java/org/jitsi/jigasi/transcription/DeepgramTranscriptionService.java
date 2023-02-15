@@ -168,6 +168,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             String result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
                     obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
                             .getString("transcript") : "";
+            logger.info(debugName + " parsed result " + result);
             UUID uuid = obj.has("metadata") ? UUID.fromString(obj.getJSONObject("metadata")
                     .getString("request_id")) : UUID.fromString(obj.getString("request_id"));
             for (TranscriptionListener l : listeners)
