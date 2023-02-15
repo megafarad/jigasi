@@ -205,7 +205,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         public void sendRequest(TranscriptionRequest request) {
             try
             {
-                logger.info("sendRequest bytes: " + request.getAudio().length);
+                logger.debug("sendRequest bytes: " + request.getAudio().length);
                 ByteBuffer audioBuffer = ByteBuffer.wrap(request.getAudio());
                 session.getRemote().sendBytes(audioBuffer);
             }
