@@ -165,9 +165,11 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             logger.info(debugName + " Received response: " + msg);
             JSONObject obj = new JSONObject(msg);
             boolean isFinal = obj.has("is_final") && obj.getBoolean("is_final");
-            String result = obj.getJSONObject("channel").has("transcript") ?
-                    obj.getJSONObject("channel").getString("transcript") : "";
-            UUID uuid = UUID.fromString(obj.getJSONObject("metadata").getString("request_id"));
+            String result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
+                    obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
+                            .getString("transcript") : "";
+            UUID uuid = obj.has("metadata") ? UUID.fromString(obj.getJSONObject("metadata")
+                    .getString("request_id")) : UUID.fromString(obj.getString("request_id"));
             for (TranscriptionListener l : listeners)
             {
                 l.notify(new TranscriptionResult(
@@ -264,13 +266,18 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             }
         }
 
+        private String getTranscript(JSONArray jsonArray) {
+            return jsonArray.getJSONObject(0).getString("transcript");
+        }
+
         @OnWebSocketMessage
         public void onMessage(String msg) {
             JSONObject obj = new JSONObject(msg);
             this.isFinal = obj.has("is_final") && obj.getBoolean("is_final");
-            this.result = obj.getJSONObject("channel").has("transcript") ?
-                    obj.getJSONObject("channel").getString("transcript") : "";
-            this.uuid = UUID.fromString(obj.getJSONObject("metadata").getString("request_id"));
+            this.result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
+                    getTranscript(obj.getJSONObject("channel").getJSONArray("alternatives")) : "";
+            this.uuid = obj.has("metadata") ? UUID.fromString(obj.getJSONObject("metadata")
+                    .getString("request_id")) : UUID.fromString(obj.getString("request_id"));
         }
 
         @OnWebSocketError
