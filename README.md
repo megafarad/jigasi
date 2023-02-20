@@ -1,7 +1,7 @@
 Jigasi
 ======
 
-Jitsi Gateway to SIP : a server-side application that links allows regular SIP clients to join Jitsi Meet conferences hosted by Jitsi Videobridge.
+This is a friendly fork of Jitsi Gateway to SIP : a server-side application that links allows regular SIP clients to join Jitsi Meet conferences hosted by Jitsi Videobridge. This fork adds support for transcription via [Deepgram](https://deepgram.com/).  
 
 Install and run
 ============
@@ -210,6 +210,21 @@ If you have multiple instances of VOSK for transcribing different languages, con
 the URLs of different VOSK instances in JSON format:
 ```
 # org.jitsi.jigasi.transcription.vosk.websocket_url={"en": "ws://localhost:2700", "fr": "ws://localhost:2710"}
+```
+
+Deepgram configuration for transcription
+==================
+
+First, acquire an API key from Deepgram. Then configure the transcription class in `~/jigasi/jigasi-home/sip-communicator.properties`
+
+```
+org.jitsi.jigasi.transcription.customService=org.jitsi.jigasi.transcription.DeepgramTranscriptionService
+```
+
+Finally, configure the API key in `~/jigasi/jigasi-home/sip-communicator.properties`:
+
+```
+org.jitsi.jigasi.transcription.deepgram.api_key=<<DEEPGRAM_API_KEY>>
 ```
 
 Whisper configuration for transcription
