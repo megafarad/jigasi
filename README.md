@@ -13,7 +13,7 @@ It is possible to install Jigasi along with Jitsi Meet using our [quick install 
 1. Checkout latest source:
  
  ```
- git clone https://github.com/jitsi/jigasi.git
+ git clone https://github.com/megafarad/jigasi.git
  ```
 2. Build:
 
