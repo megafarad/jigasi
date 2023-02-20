@@ -13,7 +13,7 @@
   <url>https://github.com/jitsi/jigasi</url>
 
   <properties>
-    <assembly.skipAssembly>false</assembly.skipAssembly>
+    <assembly.skipAssembly>true</assembly.skipAssembly>
     <jitsi-desktop.version>2.14.d0aa71b67</jitsi-desktop.version>
     <jitsi-desktop.groupId>org.jitsi.desktop</jitsi-desktop.groupId>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
