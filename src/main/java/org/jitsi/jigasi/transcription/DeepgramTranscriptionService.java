@@ -166,14 +166,17 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         @OnWebSocketMessage
         public void onMessage(String msg)
         {
-            logger.debug(debugName + " Received response: " + msg);
+            if (logger.isDebugEnabled()) {
+                logger.debug(debugName + " Received response: " + msg);
+            }
             JSONObject obj = new JSONObject(msg);
             boolean isFinal = obj.has("is_final") && obj.getBoolean("is_final");
             String result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
                     obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
                             .getString("transcript") : "";
-            logger.debug(debugName + " parsed result " + result);
-
+            if (logger.isDebugEnabled()) {
+                logger.debug(debugName + " parsed result " + result);
+            }
             if (!result.isEmpty() && (isFinal || !result.equals(lastResult)))
             {
                 lastResult = result;
@@ -205,7 +208,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
         public void sendRequest(TranscriptionRequest request) {
             try
             {
-                logger.debug("sendRequest bytes: " + request.getAudio().length);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("sendRequest bytes: " + request.getAudio().length);
+                }
                 ByteBuffer audioBuffer = ByteBuffer.wrap(request.getAudio());
                 session.getRemote().sendBytes(audioBuffer);
             }
