@@ -66,7 +66,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             WebSocketClient ws = new WebSocketClient();
             DeepgramWebsocketSession socket = new DeepgramWebsocketSession(request);
             ws.start();
-            ws.connect(socket, new URI(websocketUrl));
+            ClientUpgradeRequest clientUpgradeRequest = new ClientUpgradeRequest();
+            clientUpgradeRequest.setHeader("Authorization", "Token " + apiKey);
+            ws.connect(socket, new URI(websocketUrl), clientUpgradeRequest);
             socket.awaitClose();
             resultConsumer.accept(
                     new TranscriptionResult(
