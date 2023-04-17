@@ -176,6 +176,9 @@ public class DeepgramTranscriptionService implements TranscriptionService {
             String result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
                     obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
                             .getString("transcript") : "";
+            double confidence = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
+                    obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
+                            .getDouble("confidence") : 0;
             if (logger.isDebugEnabled()) {
                 logger.debug(debugName + " parsed result " + result);
             }
@@ -190,7 +193,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
                             !isFinal,
                             transcriptionTag,
                             0.0,
-                            new TranscriptionAlternative(result)));
+                            new TranscriptionAlternative(result, confidence)));
                 }
             }
 
