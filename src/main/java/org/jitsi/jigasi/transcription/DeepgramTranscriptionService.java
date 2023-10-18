@@ -15,7 +15,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
 
-public class DeepgramTranscriptionService implements TranscriptionService {
+public class DeepgramTranscriptionService extends AbstractTranscriptionService {
 
     private final static Logger logger = Logger.getLogger(DeepgramTranscriptionService.class);
 
