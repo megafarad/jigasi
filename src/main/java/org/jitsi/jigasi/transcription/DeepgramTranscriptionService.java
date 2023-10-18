@@ -10,6 +10,7 @@ import org.jitsi.utils.logging.*;
 import java.io.*;
 import java.net.*;
 import java.nio.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
@@ -74,6 +75,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
                     new TranscriptionResult(
                       null,
                       socket.getUuid(),
+                      Instant.now(),
                       !socket.isFinal(),
                       request.getLocale().toLanguageTag(),
                       0,
@@ -190,6 +192,7 @@ public class DeepgramTranscriptionService implements TranscriptionService {
                     l.notify(new TranscriptionResult(
                             null,
                             uuid,
+                            Instant.now(),
                             !isFinal,
                             transcriptionTag,
                             0.0,
