@@ -1342,6 +1342,12 @@ public class JvbConference
         {
             debugState.put("meetingId", meetingIdCopy);
         }
+
+        if (this.mucRoom != null)
+        {
+            debugState.put("nick", this.mucRoom.getUserNickname());
+        }
+
         return debugState;
     }
 
@@ -1655,7 +1661,8 @@ public class JvbConference
                 }
             }
             else if ("org.jitsi.jigasi.xmpp.acc.USER_ID".equals(overridenProp)
-                && JigasiBundleActivator.getConfigurationService().getBoolean(overridePrefix + ".UNIQUE_USER_ID", false))
+                && JigasiBundleActivator.getConfigurationService().getBoolean(overridePrefix + ".UNIQUE_USER_ID",
+                    false))
             {
                 try
                 {
