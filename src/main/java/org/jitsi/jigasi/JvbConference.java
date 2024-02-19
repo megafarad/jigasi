@@ -25,6 +25,7 @@ import net.java.sip.communicator.service.protocol.media.*;
 import net.java.sip.communicator.util.DataObject;
 import net.java.sip.communicator.util.osgi.ServiceUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.utils.*;
 import org.jitsi.impl.neomedia.*;
 import org.jitsi.jigasi.lobby.Lobby;
 import org.jitsi.jigasi.stats.*;
@@ -50,6 +51,7 @@ import org.jivesoftware.smackx.nick.packet.*;
 import org.jivesoftware.smackx.xdata.packet.*;
 import org.jivesoftware.smackx.xdata.*;
 import org.json.simple.*;
+import org.json.simple.parser.*;
 import org.jxmpp.jid.*;
 import org.jxmpp.jid.impl.*;
 import org.jxmpp.jid.parts.*;
@@ -58,8 +60,8 @@ import org.osgi.framework.*;
 
 import java.beans.*;
 import java.io.*;
+import java.net.*;
 import java.util.*;
-import java.util.concurrent.*;
 
 import static net.java.sip.communicator.service.protocol.event.LocalUserChatRoomPresenceChangeEvent.*;
 import static org.jivesoftware.smack.packet.StanzaError.Condition.*;
@@ -170,7 +172,7 @@ public class JvbConference
 
                 return true;
             }
-            catch (Exception e)
+            catch (Throwable e)
             {
                 logger.error("Error processing xmpp queue item", e);
 
@@ -363,7 +365,12 @@ public class JvbConference
     /**
      * Listens for room configuration changes and request room config to reflect it locally.
      */
-    private RoomConfigurationChangeListener roomConfigurationListener = null;
+    private final RoomConfigurationChangeListener roomConfigurationListener = new RoomConfigurationChangeListener();
+
+    /**
+     * Listens for messages from room metadata component for changes in room metadata.
+     */
+    private final RoomMetadataListener roomMetadataListener = new RoomMetadataListener();
 
     /**
      * Up-to-date list of participants in the room that are jigasi.
@@ -659,14 +666,9 @@ public class JvbConference
 
     private synchronized void registrationStateChangedInternal(RegistrationStateChangeEvent evt)
     {
-        if (started
-            && mucRoom == null
-            && evt.getNewState() == RegistrationState.REGISTERED)
+        if (started && mucRoom == null && evt.getNewState() == RegistrationState.REGISTERED)
         {
-            if (this.getAudioModeration() != null)
-            {
-                this.getAudioModeration().xmppProviderRegistered();
-            }
+            discoverComponentAddresses();
 
             // Join the MUC
             joinConferenceRoom();
@@ -725,6 +727,62 @@ public class JvbConference
         else
         {
             logger.info(this.callContext + evt.toString());
+        }
+    }
+
+    /**
+     * Disco info the addresses, the query is cached and will be returned from cache
+     * once we retrieve it.
+     */
+    private void discoverComponentAddresses()
+    {
+        // we are here in the RegisterThread, and it is safe to query and wait
+        // Uses disco info to discover the AV moderation address.
+        // we need to query the domain part extracted from room jid
+        if (this.callContext.getRoomJidDomain() != null)
+        {
+            try
+            {
+                long startQuery = System.currentTimeMillis();
+
+                // in case when running unittests
+                if (this.getConnection() == null)
+                {
+                    return;
+                }
+
+                DiscoverInfo info = ServiceDiscoveryManager.getInstanceFor(this.getConnection())
+                        .discoverInfo(JidCreate.domainBareFrom(this.callContext.getRoomJidDomain()));
+
+                logger.info(String.format("%s Disco-info took %oms.", this.callContext, System.currentTimeMillis() - startQuery));
+
+                DiscoverInfo.Identity avIdentity = info.getIdentities().stream().
+                    filter(di -> di.getCategory().equals("component") && di.getType().equals("av_moderation"))
+                        .findFirst().orElse(null);
+
+                if (avIdentity != null && this.getAudioModeration() != null)
+                {
+                    String avModerationAddress = avIdentity.getName();
+                    this.getAudioModeration().setAvModerationAddress(avModerationAddress);
+                }
+
+                DiscoverInfo.Identity roomMetadataIdentity = info.getIdentities().stream().
+                        filter(di -> di.getCategory().equals("component") && di.getType().equals("room_metadata"))
+                        .findFirst().orElse(null);
+
+                // we process room metadata messages only when we are transcribing
+                if (roomMetadataIdentity != null && this.gatewaySession instanceof TranscriptionGatewaySession)
+                {
+                    getConnection().addAsyncStanzaListener(roomMetadataListener,
+                        new AndFilter(
+                            MessageTypeFilter.NORMAL,
+                            FromMatchesFilter.create(JidCreate.domainBareFrom(roomMetadataIdentity.getName()))));
+                }
+            }
+            catch(Exception e)
+            {
+                logger.error("Error querying for av moderation address", e);
+            }
         }
     }
 
@@ -884,21 +942,19 @@ public class JvbConference
 
             gatewaySession.notifyJvbRoomJoined();
 
-            if (lobbyEnabled)
-            {
-                // let's check room config
-                updateFromRoomConfiguration();
-            }
-
             // let's listen for any future changes in room configuration, whether lobby will be enabled/disabled
-            if (roomConfigurationListener == null && mucRoom instanceof ChatRoomJabberImpl)
+            if (mucRoom instanceof ChatRoomJabberImpl)
             {
-                roomConfigurationListener = new RoomConfigurationChangeListener();
                 getConnection().addAsyncStanzaListener(roomConfigurationListener,
                     new AndFilter(
                         FromMatchesFilter.create(((ChatRoomJabberImpl)this.mucRoom).getIdentifierAsJid()),
                         MessageTypeFilter.GROUPCHAT));
             }
+
+            // let's check room config
+            updateFromRoomConfiguration();
+
+            logger.info(this.callContext + " Joined room: " + roomName + " meetingId:" + this.getMeetingId());
         }
         catch (Exception e)
         {
@@ -1073,15 +1129,11 @@ public class JvbConference
             = xmppProvider.getOperationSet(OperationSetMultiUserChat.class);
         muc.removePresenceListener(this);
 
-        if (this.roomConfigurationListener != null)
+        XMPPConnection connection = getConnection();
+        if (connection != null)
         {
-            XMPPConnection connection = getConnection();
-            if (connection != null)
-            {
-                connection.removeAsyncStanzaListener(roomConfigurationListener);
-            }
-
-            this.roomConfigurationListener = null;
+            connection.removeAsyncStanzaListener(roomConfigurationListener);
+            connection.removeAsyncStanzaListener(roomMetadataListener);
         }
 
         // remove listener needs to be after leave,
@@ -1690,8 +1742,19 @@ public class JvbConference
         String boshUrl = ctx.getBoshURL();
         if (StringUtils.isNotEmpty(boshUrl))
         {
-            boshUrl = boshUrl.replace(
-                "{roomName}", callContext.getConferenceName());
+            boshUrl = boshUrl.replace("{roomName}", callContext.getConferenceName());
+
+            try
+            {
+                // Make sure we encode the roomName parameter
+                URIBuilder encodedUrlBuilder = new URIBuilder(boshUrl);
+                encodedUrlBuilder.setParameter("room", callContext.getConferenceName());
+                boshUrl = encodedUrlBuilder.build().toURL().toString();
+            }
+            catch (URISyntaxException | MalformedURLException e)
+            {
+                logger.error(ctx + " Cannot encode bosh url param room", e);
+            }
 
             logger.info(ctx + " Using bosh url:" + boshUrl);
             properties.put(JabberAccountID.BOSH_URL, boshUrl);
@@ -1940,10 +2003,48 @@ public class JvbConference
             boolean singleModeratorEnabled = df.getField(Lobby.DATA_FORM_SINGLE_MODERATOR_FIELD) != null;
             setLobbyEnabled(lobbyEnabled);
             this.singleModeratorEnabled = singleModeratorEnabled;
+
+            List<String> roomMetadataValues
+                    = df.getField(TranscriptionGatewaySession.DATA_FORM_ROOM_METADATA_FIELD).getValuesAsString();
+            if (roomMetadataValues != null && !roomMetadataValues.isEmpty())
+            {
+                // it is supposed to have a single value
+                processRoomMetadataJson(roomMetadataValues.get(0));
+            }
         }
         catch(Exception e)
         {
             logger.error(this.callContext + " Error checking room configuration", e);
+        }
+    }
+
+    private void processRoomMetadataJson(String json)
+    {
+        if (!(this.gatewaySession instanceof TranscriptionGatewaySession))
+        {
+            return;
+        }
+
+        try
+        {
+            Object o = new JSONParser().parse(json);
+
+            if (o instanceof JSONObject)
+            {
+                JSONObject data = (JSONObject) o;
+
+                if (data.get("type").equals("room_metadata"))
+                {
+                    JSONObject metadataObj = (JSONObject)data.getOrDefault("metadata", new JSONObject());
+                    JSONObject recordingObj = (JSONObject)metadataObj.getOrDefault("recording", new JSONObject());
+                    ((TranscriptionGatewaySession)this.gatewaySession).setBackendTranscribingEnabled(
+                        (boolean)recordingObj.getOrDefault("isTranscribingEnabled", false));
+                }
+            }
+        }
+        catch(Exception e)
+        {
+            logger.error(callContext + " Error parsing", e);
         }
     }
 
@@ -2120,6 +2221,26 @@ public class JvbConference
                     updateFromRoomConfiguration();
                 }
             });
+        }
+    }
+
+    /**
+     * When a room metadata change is received.
+     */
+    private class RoomMetadataListener
+        implements StanzaListener
+    {
+        @Override
+        public void processStanza(Stanza stanza)
+        {
+            JsonMessageExtension jsonMsg = stanza.getExtension(JsonMessageExtension.class);
+
+            if (jsonMsg == null)
+            {
+                return;
+            }
+
+            processRoomMetadataJson(jsonMsg.getJson());
         }
     }
 
