@@ -22,6 +22,7 @@ import org.eclipse.jetty.websocket.api.*;
 import org.eclipse.jetty.websocket.api.annotations.*;
 import org.eclipse.jetty.websocket.client.*;
 import org.jitsi.jigasi.*;
+import org.jitsi.jigasi.stats.*;
 import org.jitsi.utils.logging.*;
 import org.json.*;
 
@@ -88,7 +89,7 @@ public class WhisperWebsocket
      * The config value of the websocket to the speech-to-text
      * service.
      */
-    private String websocketUrlConfig;
+    private final static String websocketUrlConfig;
 
     /**
      * The URL of the websocket to the speech-to-text service.
@@ -100,15 +101,48 @@ public class WhisperWebsocket
      */
     private final String connectionId = UUID.randomUUID().toString();
 
-    private String privateKey;
+    private final static String privateKey;
 
-    private String privateKeyName;
+    private final static String privateKeyName;
 
-    private String jwtAudience;
+    private final static String jwtAudience;
 
+    private WebSocketClient ws;
 
-    private String getJWT() throws NoSuchAlgorithmException, InvalidKeySpecException
+    static
     {
+        jwtAudience = JigasiBundleActivator.getConfigurationService()
+                .getString(JWT_AUDIENCE, "jitsi");
+        privateKey = JigasiBundleActivator.getConfigurationService()
+                .getString(PRIVATE_KEY, "");
+        privateKeyName = JigasiBundleActivator.getConfigurationService()
+                .getString(PRIVATE_KEY_NAME, "");
+        if (privateKey.isEmpty() || privateKeyName.isEmpty())
+        {
+            logger.warn("org.jitsi.jigasi.transcription.whisper.private_key_name or " +
+                    "org.jitsi.jigasi.transcription.whisper.private_key are empty." +
+                    "Will not generate a JWT for skynet/streaming-whisper.");
+        }
+
+        String wsUrlConfig = JigasiBundleActivator.getConfigurationService()
+                .getString(WEBSOCKET_URL, DEFAULT_WEBSOCKET_URL);
+        if (wsUrlConfig.endsWith("/"))
+        {
+            websocketUrlConfig = wsUrlConfig.substring(0, wsUrlConfig.length() - 1);
+        }
+        else
+        {
+            websocketUrlConfig = wsUrlConfig;
+        }
+        logger.info("Websocket transcription streaming endpoint: " + websocketUrlConfig);
+    }
+
+    private String getJWT() throws NoSuchAlgorithmException, InvalidKeySpecException, IOException
+    {
+        if (privateKey.isEmpty() || privateKeyName.isEmpty())
+        {
+            throw new IOException("Failed generating JWT for Whisper. Missing private key or key name.");
+        }
         long nowMillis = System.currentTimeMillis();
         Date now = new Date(nowMillis);
         KeyFactory kf = KeyFactory.getInstance("RSA");
@@ -132,37 +166,13 @@ public class WhisperWebsocket
      */
     private void generateWebsocketUrl()
     {
-        getConfig();
-        try
-        {
-            websocketUrl = websocketUrlConfig + "/" + connectionId + "?auth_token=" + getJWT();
-        }
-        catch (Exception e)
-        {
-            logger.error("Failed generating JWT for Whisper. " + e);
-        }
+        websocketUrl = websocketUrlConfig + "/" + connectionId;
         if (logger.isDebugEnabled())
         {
             logger.debug("Whisper URL: " + websocketUrl);
         }
     }
 
-    private void getConfig()
-    {
-        jwtAudience = JigasiBundleActivator.getConfigurationService()
-                .getString(JWT_AUDIENCE, "jitsi");
-        websocketUrlConfig = JigasiBundleActivator.getConfigurationService()
-                .getString(WEBSOCKET_URL, DEFAULT_WEBSOCKET_URL);
-        if (websocketUrlConfig.endsWith("/"))
-        {
-            websocketUrlConfig = websocketUrlConfig.substring(0, websocketUrlConfig.length() - 1);
-        }
-        privateKey = JigasiBundleActivator.getConfigurationService()
-                        .getString(PRIVATE_KEY, "");
-        privateKeyName = JigasiBundleActivator.getConfigurationService()
-                .getString(PRIVATE_KEY_NAME, "");
-        logger.info("Websocket streaming endpoint: " + websocketUrlConfig);
-    }
 
     /**
      * Connect to the websocket, retry up to maxRetryAttempts
@@ -181,10 +191,11 @@ public class WhisperWebsocket
             {
                 generateWebsocketUrl();
                 logger.info("Connecting to " + websocketUrl);
-                WebSocketClient ws = new WebSocketClient();
+                ClientUpgradeRequest upgradeRequest = new ClientUpgradeRequest();
+                upgradeRequest.setHeader("Authorization", "Bearer " + getJWT());
+                ws = new WebSocketClient();
                 ws.start();
-                CompletableFuture<Session> connectFuture = ws.connect(this, new URI(websocketUrl));
-                wsSession = connectFuture.get();
+                wsSession = ws.connect(this, new URI(websocketUrl), upgradeRequest).get();
                 wsSession.setIdleTimeout(Duration.ofSeconds(300));
                 isConnected = true;
                 logger.info("Successfully connected to " + websocketUrl);
@@ -192,6 +203,7 @@ public class WhisperWebsocket
             }
             catch (Exception e)
             {
+                Statistics.incrementTotalTranscriberConnectionErrors();
                 int remaining = maxRetryAttempts - attempt;
                 waitTime *= multiplier;
                 logger.error("Failed connecting to " + websocketUrl + ". Retrying in "
@@ -199,15 +211,19 @@ public class WhisperWebsocket
                 logger.error(e.toString());
             }
             attempt++;
-            try
+            synchronized (this)
             {
-                wait(waitTime);
+                try
+                {
+                    wait(waitTime);
+                }
+                catch (InterruptedException ignored) {}
             }
-            catch (InterruptedException ignored) {}
         }
 
         if (!isConnected)
         {
+            Statistics.incrementTotalTranscriberConnectionErrors();
             logger.error("Failed connecting to " + websocketUrl + ". Nothing to do.");
         }
     }
@@ -218,6 +234,18 @@ public class WhisperWebsocket
         wsSession = null;
         participants = null;
         participantListeners = null;
+        try
+        {
+            if (ws != null)
+            {
+                ws.stop();
+                ws = null;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.error("Error while stopping WebSocketClient", e);
+        }
     }
 
 
@@ -276,6 +304,7 @@ public class WhisperWebsocket
     {
         if (wsSession != null)
         {
+            Statistics.incrementTotalTranscriberSendErrors();
             logger.error("Error while streaming audio data to transcription service.", cause);
         }
     }
@@ -342,6 +371,7 @@ public class WhisperWebsocket
         RemoteEndpoint remoteEndpoint = wsSession.getRemote();
         if (remoteEndpoint == null)
         {
+            Statistics.incrementTotalTranscriberSendErrors();
             logger.error("Failed sending audio for " + participantId + ". Attempting to reconnect.");
             if (!wsSession.isOpen())
             {
@@ -364,6 +394,7 @@ public class WhisperWebsocket
             }
             catch (IOException e)
             {
+                Statistics.incrementTotalTranscriberSendErrors();
                 logger.error("Failed sending audio for " + participantId + ". " + e);
             }
         }

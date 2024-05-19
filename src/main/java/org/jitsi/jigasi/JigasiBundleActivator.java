@@ -17,7 +17,6 @@
  */
 package org.jitsi.jigasi;
 
-import com.timgroup.statsd.*;
 import net.java.sip.communicator.util.osgi.*;
 import org.jitsi.meet.*;
 import org.jitsi.utils.logging.Logger;
@@ -25,6 +24,8 @@ import org.jitsi.xmpp.extensions.*;
 import org.jitsi.xmpp.extensions.jibri.*;
 import org.jitsi.xmpp.extensions.jitsimeet.*;
 import org.jitsi.xmpp.extensions.rayo.*;
+import org.jitsi.xmpp.extensions.visitors.*;
+import org.jitsi.jigasi.xmpp.extensions.*;
 import net.java.sip.communicator.service.protocol.*;
 import org.jitsi.jigasi.health.*;
 import org.jitsi.jigasi.stats.*;
@@ -84,6 +85,11 @@ public class JigasiBundleActivator
      */
     public final static String P_NAME_ENABLE_SIP_STARTMUTED
         = "org.jitsi.jigasi.ENABLE_SIP_STARTMUTED";
+
+    /**
+     * The property name for the boolean value that enables or disables visitors for sip calls.
+     */
+    public final static String P_NAME_ENABLE_SIP_VISITORS = "org.jitsi.jigasi.ENABLE_SIP_VISITORS";
 
     /**
      * The default value for room join timeout.
@@ -163,7 +169,7 @@ public class JigasiBundleActivator
     }
 
     /**
-     * Get wether starmuted is enabled over sip.
+     * Get whether starmuted is enabled over sip.
      *
      * @return true if startmuted is enabled, false, otherwise.
      */
@@ -174,13 +180,13 @@ public class JigasiBundleActivator
     }
 
     /**
-     * Returns a {@link StatsDClient} instance to push statistics to datadog
+     * Get whether visitors are enabled for sip.
      *
-     * @return the {@link StatsDClient}
+     * @return true if jigasi is enabled to join as visitor.
      */
-    public static StatsDClient getDataDogClient()
+    public static boolean isSipVisitorsEnabled()
     {
-        return ServiceUtils.getService(osgiContext, StatsDClient.class);
+        return JigasiBundleActivator.getConfigurationService().getBoolean(P_NAME_ENABLE_SIP_VISITORS, false);
     }
 
     public JigasiBundleActivator()
@@ -195,6 +201,26 @@ public class JigasiBundleActivator
         configService = getService(ConfigurationService.class);
 
         StartMutedProvider.registerStartMutedProvider();
+
+        new ConferenceIqProvider();
+
+        VisitorsIq.Companion.registerProviders();
+        ProviderManager.addExtensionProvider(
+                VisitorsPromotionResponseExtension.ELEMENT,
+                VisitorsIq.NAMESPACE,
+                new DefaultPacketExtensionProvider<>(VisitorsPromotionResponseExtension.class)
+        );
+
+        ProviderManager.addExtensionProvider(
+                FeaturesExtension.ELEMENT,
+                FeaturesExtension.NAMESPACE,
+                new DefaultPacketExtensionProvider<>(FeaturesExtension.class)
+        );
+        ProviderManager.addExtensionProvider(
+                FeatureExtension.ELEMENT,
+                FeatureExtension.NAMESPACE,
+                new DefaultPacketExtensionProvider<>(FeatureExtension.class)
+        );
 
         if (isSipEnabled())
         {

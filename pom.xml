@@ -14,16 +14,16 @@
 
   <properties>
     <assembly.skipAssembly>true</assembly.skipAssembly>
-    <jitsi-desktop.version>2.14.77b1f5e65</jitsi-desktop.version>
+    <jitsi-desktop.version>2.14.eb4d6487d</jitsi-desktop.version>
     <jitsi-desktop.groupId>org.jitsi.desktop</jitsi-desktop.groupId>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <slf4j.version>1.7.36</slf4j.version>
     <junit.version>5.8.2</junit.version>
-    <smack.version>4.4.6</smack.version>
+    <smack.version>4.4.8</smack.version>
     <jxmppVersion>1.0.3</jxmppVersion>
     <!-- Match jicoco's jetty version. -->
-    <jicoco.version>1.1-133-g768ef2e</jicoco.version>
-    <jetty.version>11.0.14</jetty.version>
+    <jicoco.version>1.1-140-g8f45a9f</jicoco.version>
+    <jetty.version>11.0.20</jetty.version>
   </properties>
 
   <dependencies>
@@ -57,7 +57,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>31.1-jre</version>
+      <version>32.0.0-jre</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -82,11 +82,6 @@
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.datadoghq</groupId>
-      <artifactId>java-dogstatsd-client</artifactId>
-      <version>4.0.0</version>
     </dependency>
     <dependency>
       <groupId>org.igniterealtime.smack</groupId>
@@ -205,12 +200,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>jitsi-utils</artifactId>
-      <version>1.0-126-g02b0c86</version>
+      <version>1.0-130-g1473517</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>libjitsi</artifactId>
-      <version>1.1-29-g00e62769</version>
+      <version>1.1-34-gb93ce2ee</version>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -263,7 +258,7 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20220320</version>
+      <version>20231013</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -274,16 +269,6 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.12.0</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <version>4.4.15</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <version>4.5.13</version>
     </dependency>
     <!-- org.jitsi runtime-->
     <dependency>
