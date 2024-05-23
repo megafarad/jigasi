@@ -15,7 +15,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
 
-public class DeepgramTranscriptionService extends AbstractTranscriptionService {
+public class DeepgramTranscriptionService extends AbstractTranscriptionService
+{
 
     private final static Logger logger = Logger.getLogger(DeepgramTranscriptionService.class);
 
@@ -123,7 +124,8 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
     }
 
     @Override
-    public boolean isConfiguredProperly() {
+    public boolean isConfiguredProperly()
+    {
         return JigasiBundleActivator.getConfigurationService()
                 .getString(API_KEY) != null;
     }
@@ -170,7 +172,8 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
         @OnWebSocketMessage
         public void onMessage(String msg)
         {
-            if (logger.isDebugEnabled()) {
+            if (logger.isDebugEnabled())
+            {
                 logger.debug(debugName + " Received response: " + msg);
             }
             JSONObject obj = new JSONObject(msg);
@@ -181,7 +184,8 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
             double confidence = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
                     obj.getJSONObject("channel").getJSONArray("alternatives").getJSONObject(0)
                             .getDouble("confidence") : 0;
-            if (logger.isDebugEnabled()) {
+            if (logger.isDebugEnabled())
+            {
                 logger.debug(debugName + " parsed result " + result);
             }
             if (!result.isEmpty() && (isFinal || !result.equals(lastResult)))
@@ -213,10 +217,12 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
         }
 
         @Override
-        public void sendRequest(TranscriptionRequest request) {
+        public void sendRequest(TranscriptionRequest request)
+        {
             try
             {
-                if (logger.isDebugEnabled()) {
+                if (logger.isDebugEnabled())
+                {
                     logger.debug("sendRequest bytes: " + request.getAudio().length);
                 }
                 ByteBuffer audioBuffer = ByteBuffer.wrap(request.getAudio());
@@ -255,7 +261,8 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
     }
 
     @WebSocket
-    public class DeepgramWebsocketSession {
+    public class DeepgramWebsocketSession
+    {
 
         private final CountDownLatch closeLatch;
 
@@ -267,13 +274,15 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
 
         private boolean isFinal;
 
-        DeepgramWebsocketSession(TranscriptionRequest request) {
+        DeepgramWebsocketSession(TranscriptionRequest request)
+        {
             this.closeLatch = new CountDownLatch(1);
             this.request = request;
         }
 
         @OnWebSocketClose
-        public void onClose(int statusCode, String reason) {
+        public void onClose(int statusCode, String reason)
+        {
             this.closeLatch.countDown();
         }
 
@@ -292,12 +301,14 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
             }
         }
 
-        private String getTranscript(JSONArray jsonArray) {
+        private String getTranscript(JSONArray jsonArray)
+        {
             return jsonArray.getJSONObject(0).getString("transcript");
         }
 
         @OnWebSocketMessage
-        public void onMessage(String msg) {
+        public void onMessage(String msg)
+        {
             JSONObject obj = new JSONObject(msg);
             this.isFinal = obj.has("is_final") && obj.getBoolean("is_final");
             this.result = obj.has("channel") && obj.getJSONObject("channel").has("alternatives") ?
@@ -307,11 +318,13 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
         }
 
         @OnWebSocketError
-        public void onError(Throwable cause) {
+        public void onError(Throwable cause)
+        {
             logger.error("Websocket connection error", cause);
         }
 
-        public String getResult() {
+        public String getResult()
+        {
             return result;
         }
 
@@ -322,11 +335,13 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService {
         }
 
 
-        public UUID getUuid() {
+        public UUID getUuid()
+        {
             return uuid;
         }
 
-        public boolean isFinal() {
+        public boolean isFinal()
+        {
             return isFinal;
         }
     }
