@@ -186,7 +186,8 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService
         }
 
         private void onMessageInternal(String msg)
-            throws ParseException {
+            throws ParseException
+        {
             if (logger.isDebugEnabled())
             {
                 logger.debug(debugName + " Received response: " + msg);
@@ -197,11 +198,14 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService
 
             // Extract "transcript" if it exists within nested objects
             String result = "";
-            if (obj.containsKey("channel")) {
+            if (obj.containsKey("channel"))
+            {
                 JSONObject channel = (JSONObject) obj.get("channel");
-                if (channel.containsKey("alternatives")) {
+                if (channel.containsKey("alternatives"))
+                {
                     JSONArray alternatives = (JSONArray) channel.get("alternatives");
-                    if (!alternatives.isEmpty()) {
+                    if (!alternatives.isEmpty())
+                    {
                         JSONObject firstAlternative = (JSONObject) alternatives.get(0);
                         result = (String) firstAlternative.get("transcript");
                     }
@@ -210,17 +214,21 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService
 
             // Extract "confidence" as a double
             double confidence = 0.0;
-            if (obj.containsKey("channel")) {
+            if (obj.containsKey("channel"))
+            {
                 JSONObject channel = (JSONObject) obj.get("channel");
-                if (channel.containsKey("alternatives")) {
+                if (channel.containsKey("alternatives"))
+                {
                     JSONArray alternatives = (JSONArray) channel.get("alternatives");
-                    if (!alternatives.isEmpty()) {
+                    if (!alternatives.isEmpty())
+                    {
                         JSONObject firstAlternative = (JSONObject) alternatives.get(0);
                         Object confidenceValue = firstAlternative.get("confidence");
                         confidence = confidenceValue != null ? ((Number) confidenceValue).doubleValue() : 0.0;
                     }
                 }
-            }            if (logger.isDebugEnabled())
+            }
+            if (logger.isDebugEnabled())
             {
                 logger.debug(debugName + " parsed result " + result);
             }
@@ -349,7 +357,9 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService
             try
             {
                 this.onMessageInternal(msg);
-            } catch (ParseException e) {
+            }
+            catch (ParseException e)
+            {
                 logger.error("Error parsing message: " + msg, e);
             }
         }
@@ -360,20 +370,27 @@ public class DeepgramTranscriptionService extends AbstractTranscriptionService
             JSONObject obj = (JSONObject) jsonParser.parse(msg);
             this.isFinal = obj.containsKey("is_final") && Boolean.TRUE.equals(obj.get("is_final"));
             this.result = "";
-            if (obj.containsKey("channel")) {
+            if (obj.containsKey("channel"))
+            {
                 JSONObject channel = (JSONObject) obj.get("channel");
-                if (channel.containsKey("alternatives")) {
+                if (channel.containsKey("alternatives"))
+                {
                     JSONArray alternatives = (JSONArray) channel.get("alternatives");
-                    if (!alternatives.isEmpty()) {
+                    if (!alternatives.isEmpty())
+                    {
                         this.result = getTranscript(alternatives);
                     }
                 }
             }
-            if  (obj.containsKey("metadata")) {
+            if  (obj.containsKey("metadata"))
+            {
                 JSONObject metadata = (JSONObject) obj.get("metadata");
-                if (metadata.containsKey("request_id")) {
+                if (metadata.containsKey("request_id"))
+                {
                     this.uuid = UUID.fromString((String) metadata.get("request_id"));
-                } else if (obj.containsKey("request_id")) {
+                }
+                else if (obj.containsKey("request_id"))
+                {
                     this.uuid = UUID.fromString((String) obj.get("request_id"));
                 }
             }
