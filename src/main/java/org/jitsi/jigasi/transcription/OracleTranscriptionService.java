@@ -67,6 +67,8 @@ public class OracleTranscriptionService
     private final static Logger logger
             = Logger.getLogger(OracleTranscriptionService.class);
 
+    private String languageCode;
+
     /**
      * The config key of the websocket to the speech-to-text service.
      */
@@ -84,6 +86,12 @@ public class OracleTranscriptionService
     public final static String COMPARTMENT_ID
             = "org.jitsi.jigasi.transcription.oci.compartmentId";
 
+    public final static String OCI_FINAL_THRESHOLD_MS
+            = "org.jitsi.jigasi.transcription.oci.finalThresholdMs";
+
+    public final static String OCI_INTERIM_THRESHOLD_MS
+            = "org.jitsi.jigasi.transcription.oci.interimThresholdMs";
+
     public final static String DEFAULT_WEBSOCKET_URL = "ws://localhost:8000/ws";
 
     private BasicAuthenticationDetailsProvider authProvider;
@@ -96,6 +104,18 @@ public class OracleTranscriptionService
      * The config value of the websocket to the speech-to-text service.
      */
     private final String websocketUrlConfig;
+
+    /**
+     * The final threshold in milliseconds
+     */
+    private final int finalThresholdMs = JigasiBundleActivator.getConfigurationService()
+            .getInt(OCI_FINAL_THRESHOLD_MS, 500);
+
+    /**
+     * The interim threshold in milliseconds
+     */
+    private final int interimThresholdMs = JigasiBundleActivator.getConfigurationService()
+            .getInt(OCI_INTERIM_THRESHOLD_MS, 500);
 
 
     /**
@@ -218,16 +238,20 @@ public class OracleTranscriptionService
             }
         }
 
-        private void connect()
+        private void connect(TranscriptionRequest request)
         {
             if (client.isConnected() || isConnecting)
             {
                 return;
             }
 
+            languageCode = request.getLocale().toLanguageTag();
+
             final RealtimeParameters realtimeClientParameters = RealtimeParameters.builder()
                     .isAckEnabled(false)
-                    .finalSilenceThresholdInMs(1000)
+                    .languageCode(languageCode)
+                    .partialSilenceThresholdInMs(interimThresholdMs)
+                    .finalSilenceThresholdInMs(finalThresholdMs)
                     .build();
             try
             {
@@ -245,7 +269,7 @@ public class OracleTranscriptionService
         @Override
         public void sendRequest(TranscriptionRequest request)
         {
-            connect();
+            connect(request);
             if (isConnecting)
             {
                 logger.warn("OCI client is connecting, cannot send audio data");
@@ -329,7 +353,7 @@ public class OracleTranscriptionService
                             transcriptionId,
                             sessionStart.plusMillis(ts.getStartTimeInMs()),
                             !isFinal,
-                            "en-US",
+                            languageCode,
                             1.0,
                             new TranscriptionAlternative(tsResult)));
                 }
